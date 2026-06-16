@@ -1,0 +1,133 @@
+1. Создать базу
+CREATE DATABASE dva_senora_v4;
+
+После этого подключись к базе:
+
+\c dva_senora_v4
+2. Создать таблицы
+CREATE TABLE customers (
+    customer_id VARCHAR(20) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    inn VARCHAR(20),
+    address VARCHAR(255),
+    phone VARCHAR(20),
+    is_salesman BOOLEAN,
+    is_buyer BOOLEAN
+);
+
+CREATE TABLE products (
+    product_id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    unit VARCHAR(50),
+    price NUMERIC(10,2)
+);
+
+CREATE TABLE materials (
+    material_id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    unit VARCHAR(50),
+    price NUMERIC(10,2)
+);
+
+CREATE TABLE specifications (
+    specification_id SERIAL PRIMARY KEY,
+    product_id INT REFERENCES products(product_id),
+    name VARCHAR(255)
+);
+
+CREATE TABLE specification_items (
+    item_id SERIAL PRIMARY KEY,
+    specification_id INT REFERENCES specifications(specification_id),
+    material_id INT REFERENCES materials(material_id),
+    consumption_rate NUMERIC(10,3),
+    unit VARCHAR(50)
+);
+
+CREATE TABLE orders (
+    order_id SERIAL PRIMARY KEY,
+    customer_id VARCHAR(20) REFERENCES customers(customer_id),
+    executor_id VARCHAR(20) REFERENCES customers(customer_id),
+    order_number VARCHAR(50),
+    order_date DATE
+);
+
+CREATE TABLE order_items (
+    order_item_id SERIAL PRIMARY KEY,
+    order_id INT REFERENCES orders(order_id),
+    product_id INT REFERENCES products(product_id),
+    quantity NUMERIC(10,3),
+    unit VARCHAR(50),
+    price NUMERIC(10,2)
+);
+
+CREATE TABLE users (
+    user_id SERIAL PRIMARY KEY,
+    login VARCHAR(100) UNIQUE NOT NULL,
+    password VARCHAR(100) NOT NULL,
+    role VARCHAR(50) NOT NULL,
+    is_blocked BOOLEAN DEFAULT FALSE,
+    error_count INT DEFAULT 0
+);
+3. Заполнить данными
+INSERT INTO customers (customer_id, name, inn, address, phone, is_salesman, is_buyer) VALUES
+('000000001', 'ООО "Поставка"', '', 'г.Пятигорск', '+79198634592', TRUE, TRUE),
+('000000002', 'ООО "Кинотеатр Квант"', '26320045123', 'г. Железноводск, ул. Мира, 123', '+79884581555', TRUE, FALSE),
+('000000008', 'ООО "Новый JDTO"', '26320045111', 'г. Железноводсу', '+79884581555', TRUE, FALSE),
+('000000003', 'ООО "Ромашка"', '4140784214', 'г. Омск, ул. Строителей, 294', '+79882584546', FALSE, TRUE),
+('000000009', 'ООО "Ипподром"', '5874045632', 'г. Уфа, ул. Набережная, 37', '+79627486389', TRUE, TRUE),
+('000000010', 'ООО "Ассоль"', '2629011278', 'г. Калуга, ул. Пушкина, 94', '+79184572398', FALSE, TRUE);
+
+INSERT INTO products (name, unit, price) VALUES
+('Пицца "Пеперони" 33см', 'шт', 850.00),
+('Пицца "Маргарита" 33см', 'шт', 710.00);
+
+INSERT INTO materials (name, unit, price) VALUES
+('Куриное яйцо', 'шт', 85.00),
+('Майонез', 'кг', 210.00),
+('Бекон', 'кг', 200.00),
+('Тесто', 'кг', 400.00),
+('Сыр чеддер', 'кг', 960.00);
+
+INSERT INTO specifications (product_id, name) VALUES
+(1, 'Спецификация пиццы "Пеперони" 33см');
+
+INSERT INTO specification_items (specification_id, material_id, consumption_rate, unit) VALUES
+(1, 1, 1.000, 'шт'),
+(1, 2, 0.050, 'кг'),
+(1, 3, 0.120, 'кг'),
+(1, 4, 0.300, 'кг'),
+(1, 5, 0.100, 'кг');
+
+INSERT INTO orders (customer_id, executor_id, order_number, order_date) VALUES
+('000000002', '000000001', '1', '2025-06-06');
+
+INSERT INTO order_items (order_id, product_id, quantity, unit, price) VALUES
+(1, 1, 4, 'шт', 850.00),
+(1, 2, 6, 'шт', 710.00);
+
+INSERT INTO users (login, password, role, is_blocked, error_count) VALUES
+('admin', 'admin123', 'admin', FALSE, 0),
+('user', 'user123', 'user', FALSE, 0);
+4. Проверка
+SELECT * FROM customers;
+SELECT * FROM products;
+SELECT * FROM materials;
+SELECT * FROM orders;
+SELECT * FROM order_items;
+SELECT * FROM users;
+
+ЗАПРОС
+
+SELECT
+    SUM(oi.quantity * si.consumption_rate * m.price) AS total_cost
+FROM order_items oi
+JOIN specifications s
+    ON oi.product_id = s.product_id
+JOIN specification_items si
+    ON s.specification_id = si.specification_id
+JOIN materials m
+    ON si.material_id = m.material_id;
+
+ПИТОН
+py -m pip install psycopg2-binary
+py --version

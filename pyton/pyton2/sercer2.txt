@@ -1,0 +1,197 @@
+import tkinter as tk
+from tkinter import messagebox
+import random
+
+users = {
+    "admin": {
+        "password": "admin123",
+        "role": "Администратор",
+        "blocked": False,
+        "errors": 0
+    },
+    "user": {
+        "password": "user123",
+        "role": "Пользователь",
+        "blocked": False,
+        "errors": 0
+    }
+}
+
+selected_order = []
+correct_order = [1, 2, 3, 4]
+images = {}
+
+
+def reset_captcha():
+    global selected_order
+    selected_order = []
+    selected_label.config(text="Выбрано: []")
+
+
+def select_piece(number):
+    selected_order.append(number)
+    selected_label.config(text=f"Выбрано: {selected_order}")
+
+
+def login():
+    login_text = login_entry.get()
+    password_text = password_entry.get()
+
+    if login_text == "" or password_text == "":
+        messagebox.showerror("Ошибка", "Поля Логин и Пароль обязательны для заполнения")
+        return
+
+    if login_text not in users:
+        messagebox.showerror("Ошибка", "Вы ввели неверный логин или пароль. Пожалуйста проверьте ещё раз введенные данные")
+        reset_captcha()
+        return
+
+    user = users[login_text]
+
+    if user["blocked"]:
+        messagebox.showerror("Ошибка", "Вы заблокированы. Обратитесь к администратору")
+        reset_captcha()
+        return
+
+    if password_text != user["password"] or selected_order != correct_order:
+        user["errors"] += 1
+
+        if user["errors"] >= 3:
+            user["blocked"] = True
+            messagebox.showerror("Ошибка", "Вы заблокированы. Обратитесь к администратору")
+        else:
+            messagebox.showerror("Ошибка", "Вы ввели неверный логин или пароль. Пожалуйста проверьте ещё раз введенные данные")
+
+        reset_captcha()
+        return
+
+    user["errors"] = 0
+    messagebox.showinfo("Успех", "Вы успешно авторизовались")
+
+    if user["role"] == "Администратор":
+        open_admin_window()
+    else:
+        open_user_window(login_text)
+
+
+def open_user_window(login_text):
+    window = tk.Toplevel(root)
+    window.title("Рабочий стол пользователя")
+    window.geometry("350x200")
+
+    tk.Label(window, text=f"Добро пожаловать, {login_text}", font=("Arial", 14)).pack(pady=50)
+
+
+def open_admin_window():
+    window = tk.Toplevel(root)
+    window.title("Рабочий стол администратора")
+    window.geometry("600x500")
+
+    tk.Label(window, text="Управление пользователями", font=("Arial", 16)).pack(pady=10)
+
+    users_list = tk.Listbox(window, width=80)
+    users_list.pack(pady=10)
+
+    def load_users():
+        users_list.delete(0, tk.END)
+
+        for login_name, data in users.items():
+            users_list.insert(
+                tk.END,
+                f"Логин: {login_name} | Роль: {data['role']} | Заблокирован: {data['blocked']} | Ошибки: {data['errors']}"
+            )
+
+    tk.Label(window, text="Логин").pack()
+    new_login = tk.Entry(window)
+    new_login.pack()
+
+    tk.Label(window, text="Пароль").pack()
+    new_password = tk.Entry(window)
+    new_password.pack()
+
+    tk.Label(window, text="Роль: Администратор или Пользователь").pack()
+    new_role = tk.Entry(window)
+    new_role.insert(0, "Пользователь")
+    new_role.pack()
+
+    def add_user():
+        login_value = new_login.get()
+        password_value = new_password.get()
+        role_value = new_role.get()
+
+        if login_value == "" or password_value == "" or role_value == "":
+            messagebox.showerror("Ошибка", "Заполните все поля")
+            return
+
+        if login_value in users:
+            messagebox.showerror("Ошибка", "Пользователь с указанным логином уже существует")
+            return
+
+        users[login_value] = {
+            "password": password_value,
+            "role": role_value,
+            "blocked": False,
+            "errors": 0
+        }
+
+        messagebox.showinfo("Успех", "Пользователь добавлен")
+        load_users()
+
+    def unblock_user():
+        selected = users_list.curselection()
+
+        if not selected:
+            messagebox.showerror("Ошибка", "Выберите пользователя")
+            return
+
+        text = users_list.get(selected[0])
+        login_name = text.split("|")[0].replace("Логин:", "").strip()
+
+        users[login_name]["blocked"] = False
+        users[login_name]["errors"] = 0
+
+        messagebox.showinfo("Успех", "Пользователь разблокирован")
+        load_users()
+
+    tk.Button(window, text="Добавить пользователя", command=add_user).pack(pady=5)
+    tk.Button(window, text="Снять блокировку", command=unblock_user).pack(pady=5)
+
+    load_users()
+
+
+root = tk.Tk()
+root.title("Два Сеньора - Авторизация")
+root.geometry("900x500")
+
+tk.Label(root, text="Авторизация", font=("Arial", 18)).pack(pady=10)
+
+tk.Label(root, text="Логин").pack()
+login_entry = tk.Entry(root, width=30)
+login_entry.pack()
+
+tk.Label(root, text="Пароль").pack()
+password_entry = tk.Entry(root, show="*", width=30)
+password_entry.pack()
+
+tk.Label(root, text="Соберите капчу: нажмите части картинки в правильном порядке").pack(pady=10)
+
+captcha_frame = tk.Frame(root)
+captcha_frame.pack()
+
+numbers = [1, 2, 3, 4]
+random.shuffle(numbers)
+
+for num in numbers:
+    img = tk.PhotoImage(file=f"capcha/{num}.png")
+    img = img.subsample(5, 5)
+    images[num] = img
+
+    btn = tk.Button(captcha_frame, image=img, command=lambda n=num: select_piece(n))
+    btn.pack(side="left", padx=5)
+
+selected_label = tk.Label(root, text="Выбрано: []")
+selected_label.pack(pady=15)
+
+tk.Button(root, text="Войти", width=20, command=login).pack(pady=10)
+
+root.mainloop()
